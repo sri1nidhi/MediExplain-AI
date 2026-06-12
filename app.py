@@ -233,7 +233,6 @@ st.warning(
     """
 ⚠️ Disclaimer
 
-
 This tool is for educational purposes only.
 
 The generated analysis is NOT a medical diagnosis.
