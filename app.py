@@ -1,12 +1,9 @@
 import streamlit as st
+from PIL import Image
 
 from utils.pdf_loader import extract_pdf_text
-from utils.image_loader import extract_image_text
 from utils.llm import get_llm
 
-# -----------------------
-# Page Config
-# -----------------------
 
 st.set_page_config(
     page_title="MediExplain AI",
@@ -14,126 +11,99 @@ st.set_page_config(
     layout="wide"
 )
 
-# -----------------------
-# Language Text
-# -----------------------
-
-TEXT = {
-    "English": {
-        "title": "🩺 MediExplain AI",
-        "subtitle": "Understand Medical Reports in Simple Language",
-        "upload": "📄 Upload Medical Report",
-        "analyze": "🔍 Analyze Report",
-        "apikey": "🔑 Enter Gemini API Key"
-    },
-    "Telugu": {
-        "title": "🩺 మెడి ఎక్స్‌ప్లైన్ AI",
-        "subtitle": "మెడికల్ రిపోర్టులను సులభంగా అర్థం చేసుకోండి",
-        "upload": "📄 మెడికల్ రిపోర్ట్ అప్లోడ్ చేయండి",
-        "analyze": "🔍 రిపోర్ట్ విశ్లేషించండి",
-        "apikey": "🔑 Gemini API Key నమోదు చేయండి"
-    },
-    "Hindi": {
-        "title": "🩺 मेडीएक्सप्लेन AI",
-        "subtitle": "मेडिकल रिपोर्ट को आसान भाषा में समझें",
-        "upload": "📄 मेडिकल रिपोर्ट अपलोड करें",
-        "analyze": "🔍 रिपोर्ट का विश्लेषण करें",
-        "apikey": "🔑 Gemini API Key दर्ज करें"
-    }
-}
-
-# -----------------------
-# Header
-# -----------------------
-
-language = st.selectbox(
-    "🌐 Language",
-    ["English", "Telugu", "Hindi"]
+st.title("🩺 MediExplain AI")
+st.subheader(
+    "Understand Medical Reports in Simple Language"
 )
 
-st.title(TEXT[language]["title"])
-st.subheader(TEXT[language]["subtitle"])
+# ----------------------------
+# Language Selection
+# ----------------------------
 
-# -----------------------
+language = st.selectbox(
+    "🌐 Choose Language",
+    [
+        "English",
+        "Telugu",
+        "Hindi"
+    ]
+)
+
+# ----------------------------
 # API Key
-# -----------------------
+# ----------------------------
 
 api_key = st.text_input(
-    TEXT[language]["apikey"],
+    "🔑 Enter Gemini API Key",
     type="password"
 )
 
-# -----------------------
+# ----------------------------
 # Upload
-# -----------------------
+# ----------------------------
 
 uploaded_file = st.file_uploader(
-    TEXT[language]["upload"],
-    type=["pdf", "png", "jpg", "jpeg"]
+    "📄 Upload Medical Report",
+    type=[
+        "pdf",
+        "png",
+        "jpg",
+        "jpeg"
+    ]
 )
 
-# -----------------------
-# Processing
-# -----------------------
+# ----------------------------
+# Report Processing
+# ----------------------------
 
 if uploaded_file:
 
-    try:
+    st.success("✅ Report Uploaded Successfully")
 
-        if uploaded_file.type == "application/pdf":
-            report_text = extract_pdf_text(uploaded_file)
+    if uploaded_file.type.startswith("image"):
 
-        else:
+        image = Image.open(uploaded_file)
 
-            st.image(
-                uploaded_file,
-                caption="Uploaded Report",
-                use_container_width=True
-            )
+        st.image(
+            image,
+            caption="Uploaded Report",
+            use_container_width=True
+        )
 
-            report_text = extract_image_text(uploaded_file)
+    if not api_key:
+        st.warning(
+            "Please enter Gemini API Key"
+        )
+        st.stop()
 
-        st.success("✅ Report Uploaded Successfully")
+    if st.button("🔍 Analyze Report"):
 
-        if st.button(TEXT[language]["analyze"]):
+        with st.spinner("Analyzing Medical Report..."):
 
-            if not api_key:
-                st.warning("⚠️ Please enter Gemini API Key")
-                st.stop()
-
-            with st.spinner("Analyzing Report..."):
+            try:
 
                 llm = get_llm(api_key)
 
-                prompt = f"""
+                # ----------------------------------
+                # PDF REPORT
+                # ----------------------------------
+
+                if uploaded_file.type == "application/pdf":
+
+                    report_text = extract_pdf_text(
+                        uploaded_file
+                    )
+
+                    prompt = f"""
 You are an expert medical report analyzer.
 
-Analyze any medical report.
-
-Supported Reports:
-
-- Blood Reports
-- CBC Reports
-- Thyroid Reports
-- Kidney Reports
-- Liver Reports
-- Urine Reports
-- MRI Reports
-- CT Scan Reports
-- X-Ray Reports
-- Ultrasound Reports
-- Discharge Summaries
-- Prescription Documents
+Analyze this medical report.
 
 Return ONLY markdown.
 
-# 📋 Report Type
-
-Identify the report type.
-
 # 📊 Health Risk Dashboard
 
-Provide:
+Show:
 
 🔴 High Risk Findings
 
@@ -143,91 +113,138 @@ Provide:
 
 # 🩺 Patient-Friendly Summary
 
-Explain the report in simple language.
+Explain in simple language.
 
 # ⚠️ Abnormal Findings
 
-List all abnormal values.
-
-For each abnormal value explain:
-
-- What it means
-- Possible causes
-- Severity
+List abnormal values.
 
 # 🧪 Test Results Breakdown
 
-Create separate sections.
+For every parameter provide:
 
-For every test include:
-
-- Test Name
 - Value
 - Normal Range
 - Risk Level
 - Explanation
 
-# 🌐 Explanation Language
+# 🌐 Language
 
-Provide explanation in:
-
-{language}
+Provide explanation in {language}.
 
 # 👨‍⚕️ Questions To Ask Doctor
 
-Generate 5 useful questions.
+Generate 5 questions.
 
-# 📋 Health Recommendations
+# 📋 Recommendations
 
-Provide general recommendations.
-
-# ⚠️ Important Note
-
-Mention that this is not a medical diagnosis.
+Provide health recommendations.
 
 Medical Report:
 
 {report_text}
 """
 
-                response = llm.invoke(prompt)
+                    response = llm.invoke(prompt)
 
-                st.success("✅ Analysis Complete")
+                # ----------------------------------
+                # IMAGE REPORT
+                # ----------------------------------
 
-                # Dashboard Section
-                st.markdown("---")
-                st.subheader("📊 Health Dashboard")
+                else:
 
-                col1, col2, col3 = st.columns(3)
+                    image = Image.open(
+                        uploaded_file
+                    )
 
-                with col1:
-                    st.error("🔴 High Risk Findings")
+                    response = llm.invoke([
+                        f"""
+You are an expert medical report analyzer.
 
-                with col2:
-                    st.warning("🟠 Moderate Risk Findings")
+Analyze this medical report image.
 
-                with col3:
-                    st.success("🟢 Normal Findings")
+The report may be:
 
-                st.markdown("---")
+- Blood Test
+- CBC
+- Thyroid
+- MRI
+- CT Scan
+- X-Ray
+- Urine Test
+- Liver Function Test
+- Kidney Function Test
+- Prescription
+- Discharge Summary
 
-                # AI Analysis
-                st.markdown(response.content)
+Return ONLY markdown.
 
-                # Download
+# 📊 Health Risk Dashboard
+
+Show:
+
+🔴 High Risk Findings
+
+🟠 Moderate Risk Findings
+
+🟢 Normal Findings
+
+# 🩺 Patient-Friendly Summary
+
+Explain in simple language.
+
+# ⚠️ Abnormal Findings
+
+List abnormal findings.
+
+# 🧪 Test Results Breakdown
+
+For every parameter provide:
+
+- Value
+- Normal Range
+- Risk Level
+- Explanation
+
+# 🌐 Language
+
+Provide explanation in {language}.
+
+# 👨‍⚕️ Questions To Ask Doctor
+
+Generate 5 questions.
+
+# 📋 Recommendations
+
+Provide health recommendations.
+""",
+                        image
+                    ])
+
+                st.success(
+                    "✅ Analysis Complete"
+                )
+
+                st.markdown(
+                    response.content
+                )
+
                 st.download_button(
                     "📥 Download Analysis",
                     response.content,
-                    file_name=f"medical_analysis_{language}.md",
+                    file_name="medical_report_analysis.md",
                     mime="text/markdown"
                 )
 
-    except Exception as e:
-        st.error(f"Error: {e}")
+            except Exception as e:
 
-# -----------------------
+                st.error(
+                    f"AI Error: {e}"
+                )
+
+# ----------------------------
 # Disclaimer
-# -----------------------
+# ----------------------------
 
 st.warning(
     """
@@ -237,6 +254,6 @@ This tool is for educational purposes only.
 
 The generated analysis is NOT a medical diagnosis.
 
-Always consult a licensed healthcare professional before making any medical decisions.
+Please consult a licensed healthcare professional.
 """
 )
