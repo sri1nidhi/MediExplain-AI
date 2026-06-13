@@ -1,6 +1,5 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-
 def get_llm(api_key):
 
     return ChatGoogleGenerativeAI(
