@@ -11,14 +11,19 @@ st.set_page_config(
     layout="wide"
 )
 
+
+# ---------------------------------------------------
+# HEADER
+# ---------------------------------------------------
+
 st.title("🩺 MediExplain AI")
 st.subheader(
     "Understand Medical Reports in Simple Language"
 )
 
-# ----------------------------
-# Language Selection
-# ----------------------------
+# ---------------------------------------------------
+# LANGUAGE
+# ---------------------------------------------------
 
 language = st.selectbox(
     "🌐 Choose Language",
@@ -29,18 +34,18 @@ language = st.selectbox(
     ]
 )
 
-# ----------------------------
-# API Key
-# ----------------------------
+# ---------------------------------------------------
+# API KEY
+# ---------------------------------------------------
 
 api_key = st.text_input(
     "🔑 Enter Gemini API Key",
     type="password"
 )
 
-# ----------------------------
-# Upload
-# ----------------------------
+# ---------------------------------------------------
+# FILE UPLOAD
+# ---------------------------------------------------
 
 uploaded_file = st.file_uploader(
     "📄 Upload Medical Report",
@@ -52,18 +57,21 @@ uploaded_file = st.file_uploader(
     ]
 )
 
-# ----------------------------
-# Report Processing
-# ----------------------------
+# ---------------------------------------------------
+# PROCESS FILE
+# ---------------------------------------------------
 
 if uploaded_file:
 
     st.success("✅ Report Uploaded Successfully")
 
-    if uploaded_file.type.startswith("image"):
+    is_pdf = uploaded_file.type == "application/pdf"
 
+    if is_pdf:
+        report_text = extract_pdf_text(uploaded_file)
+
+    else:
         image = Image.open(uploaded_file)
-
         st.image(
             image,
             caption="Uploaded Report",
@@ -78,32 +86,40 @@ if uploaded_file:
 
     if st.button("🔍 Analyze Report"):
 
-        with st.spinner("Analyzing Medical Report..."):
+        with st.spinner("Analyzing Report..."):
+
+            llm = get_llm(api_key)
 
             try:
 
-                llm = get_llm(api_key)
-
                 # ----------------------------------
-                # PDF REPORT
+                # PDF ANALYSIS
                 # ----------------------------------
 
-                if uploaded_file.type == "application/pdf":
-
-                    report_text = extract_pdf_text(
-                        uploaded_file
-                    )
+                if is_pdf:
 
                     prompt = f"""
 You are an expert medical report analyzer.
 
-Analyze this medical report.
+Analyze this hospital report.
 
-Return ONLY markdown.
+The report can be:
+
+- Blood Report
+- CBC Report
+- Thyroid Report
+- Kidney Report
+- Liver Report
+- Urine Report
+- MRI Report
+- CT Scan Report
+- X-Ray Report
+- Discharge Summary
+- Prescription
+
+Provide:
 
 # 📊 Health Risk Dashboard
-
-Show:
 
 🔴 High Risk Findings
 
@@ -113,15 +129,11 @@ Show:
 
 # 🩺 Patient-Friendly Summary
 
-Explain in simple language.
-
 # ⚠️ Abnormal Findings
-
-List abnormal values.
 
 # 🧪 Test Results Breakdown
 
-For every parameter provide:
+For every test include:
 
 - Value
 - Normal Range
@@ -130,15 +142,13 @@ For every parameter provide:
 
 # 🌐 Language
 
-Provide explanation in {language}.
+Explain in {language}
 
 # 👨‍⚕️ Questions To Ask Doctor
 
 Generate 5 questions.
 
 # 📋 Recommendations
-
-Provide health recommendations.
 
 Medical Report:
 
@@ -148,40 +158,18 @@ Medical Report:
                     response = llm.invoke(prompt)
 
                 # ----------------------------------
-                # IMAGE REPORT
+                # IMAGE ANALYSIS
                 # ----------------------------------
 
                 else:
 
-                    image = Image.open(
-                        uploaded_file
-                    )
-
-                    response = llm.invoke([
+                    response = llm.invoke(
                         f"""
-You are an expert medical report analyzer.
+Analyze the uploaded medical report image.
 
-Analyze this medical report image.
-
-The report may be:
-
-- Blood Test
-- CBC
-- Thyroid
-- MRI
-- CT Scan
-- X-Ray
-- Urine Test
-- Liver Function Test
-- Kidney Function Test
-- Prescription
-- Discharge Summary
-
-Return ONLY markdown.
+Provide:
 
 # 📊 Health Risk Dashboard
-
-Show:
 
 🔴 High Risk Findings
 
@@ -191,43 +179,21 @@ Show:
 
 # 🩺 Patient-Friendly Summary
 
-Explain in simple language.
-
 # ⚠️ Abnormal Findings
-
-List abnormal findings.
 
 # 🧪 Test Results Breakdown
 
-For every parameter provide:
-
-- Value
-- Normal Range
-- Risk Level
-- Explanation
-
-# 🌐 Language
-
-Provide explanation in {language}.
+# 🌐 Explain in {language}
 
 # 👨‍⚕️ Questions To Ask Doctor
 
-Generate 5 questions.
-
 # 📋 Recommendations
+"""
+                    )
 
-Provide health recommendations.
-""",
-                        image
-                    ])
+                st.success("✅ Analysis Complete")
 
-                st.success(
-                    "✅ Analysis Complete"
-                )
-
-                st.markdown(
-                    response.content
-                )
+                st.markdown(response.content)
 
                 st.download_button(
                     "📥 Download Analysis",
@@ -242,9 +208,9 @@ Provide health recommendations.
                     f"AI Error: {e}"
                 )
 
-# ----------------------------
-# Disclaimer
-# ----------------------------
+# ---------------------------------------------------
+# DISCLAIMER
+# ---------------------------------------------------
 
 st.warning(
     """
@@ -254,6 +220,6 @@ This tool is for educational purposes only.
 
 The generated analysis is NOT a medical diagnosis.
 
-Please consult a licensed healthcare professional.
+Please consult a qualified healthcare professional before making medical decisions.
 """
 )
