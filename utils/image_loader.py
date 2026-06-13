@@ -1,10 +1,13 @@
 from PIL import Image
 import pytesseract
 
-def extract_image_text(image_file):
-    
+pytesseract.pytesseract.tesseract_cmd = (
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+)
 
-    image = Image.open(image_file)
+def extract_image_text(uploaded_file):
+
+    image = Image.open(uploaded_file)
 
     text = pytesseract.image_to_string(image)
 
